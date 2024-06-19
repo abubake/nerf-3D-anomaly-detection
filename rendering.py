@@ -1,6 +1,4 @@
 import torch
-from sklearn.mixture import GaussianMixture
-import numpy as np
 
 def compute_accumulated_transmittance(betas):
     accumulated_transmittance = torch.cumprod(betas, 1)     

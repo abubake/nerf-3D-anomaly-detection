@@ -32,6 +32,9 @@ visualize - Use this to visualize pose and ray data for one or many poses.
 ## Usage
 Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
 
+To run the experiment to reproduce results:
+python train_nerf.py --conf configs/experiment1.conf
+
 ## Support
 Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 
