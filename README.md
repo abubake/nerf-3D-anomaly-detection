@@ -13,8 +13,8 @@ Depending on what you are making, it can be a good idea to include screenshots o
 To get started, we need recommend installing all requirements in a conda environment. The requirements file contains everything that must be installed. Simply run the following commands to create one and install the required libraries:
 
 ```
-conda env create -n "bakernerf"
-conda activate bakernerf
+conda env create -n "nerf3Dchange"
+conda activate nerf3Dchange
 pip install -r requirements.txt
 ```
 

@@ -6,7 +6,7 @@ import shutil
 import json
 
 
-def generate_data(using_blender = True, training_split = 0.9, img_folder = "imgs", focal=120,
+def generate_data(using_blender = True, training_split = 0.9, img_folder = "imgs", focal=120,width=400,
                    project_data_dir = '/home/eherrin@ad.ufl.edu/code/bakernerf/coral'):
     '''
     Calls the 3 data processing functions below to process the data in one quick step.
@@ -21,6 +21,7 @@ def generate_data(using_blender = True, training_split = 0.9, img_folder = "imgs
     
     blender_pose_and_intrinsics(training_split=training_split,
                                 focal=focal,
+                                width=width,
                                   train_folder = 'train',
                                   project_data_dir=project_data_dir)
     
@@ -168,7 +169,8 @@ def omniverse_pose_and_intrinsics(training_split=0.9,
             test_counter += 1      
 
 def blender_pose_and_intrinsics(training_split=0.9,
-                                focal = 50,
+                                focal = 120,
+                                width = 400,
                                   train_folder = 'train',
                                   project_data_dir='/home/eherrin@ad.ufl.edu/code/coral_nerf/cube'):
     '''
@@ -189,11 +191,11 @@ def blender_pose_and_intrinsics(training_split=0.9,
     with open(os.path.join(project_data_dir, json_files[0]), 'r') as file:
 
         data = json.load(file) # load the json file containing all the poses
-        
+        height = width
         # Instrinsics Information
-        pixel_size = 36 / 400 # mm (sensor size mm) / (width or height if square)
+        pixel_size = 36 / width # mm (sensor size mm) / (width or height if square)
         f = focal / pixel_size
-        cxy = [200,200] # TODO: add width and height as parameters here
+        cxy = [width/2,height/2] # TODO: add width and height as parameters here
         intrinsics = [f, 0.0, cxy[0], 0.0,
                       0.0, f, cxy[1], 0.0,
                       0.0, 0.0, 1.0, 0.0, 

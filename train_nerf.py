@@ -2,6 +2,7 @@ import torch
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from tools import setup_experiment_folders
+from tools import create_experiment_data
 from dataset import get_rays
 from model import Nerf
 from ml_helpers import training
@@ -35,6 +36,15 @@ def main(args):
     nb_bins = config.getint('EXPERIMENT', 'nb_bins')
     N = config.getint('EXPERIMENT', 'N')
 
+    # Acess all the parameters in the TESTS section
+    section = 'TESTS'
+    test_params = {}
+    if section in config:
+        test_params = {key: config.get(section, key) for key in config[section]}
+    else:
+        print(f"Section {section} not found in the {args.conf}")
+
+    # Load training data
     o, d, target_px_values = get_rays(dataset_path, mode='train')
 
     dataloader = DataLoader(torch.cat((torch.from_numpy(o).reshape(-1, 3).type(torch.float),
@@ -50,6 +60,7 @@ def main(args):
     #test_o, test_d, test_target_px_values = get_rays(dataset_path, mode='test')
 
     setup_experiment_folders(experiment_name)
+    create_experiment_data(experiment_name, test_params) # FIXME: implement this
 
     for i in range(N):
 
@@ -60,19 +71,18 @@ def main(args):
         training_loss = training(model, optimizer, scheduler, tn, tf, nb_bins, 1, dataloader_warmup, model_name="experiments/"+experiment_name+"/models/M"+str(i)+'.pth', device=device)
         phase = "warmup"
         plt.plot(training_loss)
-        filename = "experiments/monkey_3_big_aug/figures/model_"+i+"_"+phase+".png"
+        filename = "experiments/"+experiment_name+"/figures/model_"+str(i)+"_"+phase+".png"
         plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=False)
         
         training_loss = training(model, optimizer, scheduler, tn, tf, nb_bins, nb_epochs, dataloader, model_name="experiments/"+experiment_name+"/models/M"+str(i)+'.pth', device=device)
         phase = 'training'
         plt.plot(training_loss)
-        filename = "experiments/monkey_3_big_aug/figures/model_"+i+"_"+phase+".png"
+        filename = "experiments/"+experiment_name+"/figures/model_"+str(i)+"_"+phase+".png"
         plt.savefig(filename, dpi=300, bbox_inches='tight', transparent=False)
 
 
 if __name__ == '__main__':
 
-    #torch.set_default_tensor_type('torch.cuda.FloatTensor')
     parser = argparse.ArgumentParser(description="Run NeRF training with specified configuration file.")
     parser.add_argument('--conf', type=str, default="./configs/conf.conf", help="Path to the configuration file")
     args = parser.parse_args()
