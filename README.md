@@ -35,6 +35,9 @@ Use examples liberally, and show the expected output if you can. It's helpful to
 To run the experiment to reproduce results:
 python train_nerf.py --conf configs/experiment1.conf
 
+To evaluate models, run:
+python evaluate.py
+
 ## Support
 Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
 

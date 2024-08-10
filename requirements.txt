@@ -5,5 +5,12 @@ tqdm==4.66.2
 trimesh==4.4.1
 pymcubes==0.1.4
 jupyterlab>=3
+mypy==1.10.1
+scikit-learn==1.5.1
+seaborn==0.13.2
 ipywidgets
 pyvista[all,trame]
+pytorch3d==0.7.7
+open3d==0.18.0
+
+# whill need to switch to install some libs from conda-forge, and some some pypi
