@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader
 from tools import setup_experiment_folders
 from tools import create_experiment_data
-from evaluate import 
 from dataset import get_rays
 from model import Nerf
 from ml_helpers import training
@@ -25,7 +24,7 @@ def main(args):
     height = config.getint('EXPERIMENT', 'height')
     width = config.getint('EXPERIMENT', 'width')
     imgs = config.getint('EXPERIMENT', 'imgs')
-    pth_file = config.get('EXPERIMENT', 'pth_file')
+    #pth_file = config.get('EXPERIMENT', 'pth_file')
     experiment_name = config.get('EXPERIMENT', 'experiment_name')
     device = config.get('EXPERIMENT', 'device')
     tn = config.getfloat('EXPERIMENT', 'tn')
@@ -47,7 +46,7 @@ def main(args):
     # Start here!
     create_experiment_data(experiment_name, test_params)
     setup_experiment_folders(experiment_name)
-    train_models(experiment_name, ensembles,lr, gamma, tn, tf, nb_bins,
+    train_models(experiment_name, ensembles, lr, gamma, tn, tf, nb_bins,
                   nb_epochs, batch_size, imgs, height, width, device)
     #post_processing()
     # evaluate_models()
@@ -74,11 +73,8 @@ def train_models(experiment_name, ensembles,lr, gamma, tn, tf, nb_bins,
     Trains all models specified for the experiment with given hyperparameters.
 
     args:
-        x
-    returns:
-        
+        x 
     '''
-
     directories = sorted([name for name in os.listdir(f"data/{experiment_name}") 
                           if os.path.isdir(os.path.join(f"data/{experiment_name}", name))])
     for directory in directories: # for each individual set of data in the dataset we are running, execute.

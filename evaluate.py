@@ -321,11 +321,16 @@ if __name__ == '__main__':
     #pth_file_k2 = 'experiments/pigeye/models/M0.pth'
     #model_k1 = torch.load(pth_file_k1).to(device)
     #model_k2 = torch.load(pth_file_k2).to(device)
-    change_model = torch.load('experiments/test/set20/models/M0.pth').to(device)
+    # change_model = torch.load('experiments/test/set20/models/M0.pth').to(device)
+    # Make into a function to call
+    pts, density = get_nerf_pts(torch.load("experiments/whale/set0/models/M0.pth").to(device))
+    pcd = o3d.geometry.PointCloud()
+    pcd.points = o3d.utility.Vector3dVector(pts.T)
+    o3d.io.write_point_cloud("gt_change_whale_m0.pcd", pcd)
 
     import os
     # new stuff for testing
-    base_path = 'experiments/test/'
+    base_path = 'experiments/whale/'
     set_prefix = 'set'
     model_prefix = 'M'
 

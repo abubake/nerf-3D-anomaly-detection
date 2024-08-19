@@ -8,9 +8,7 @@ import json
 import random
 import shutil
 from typing import List
-import mypy
-
-import tempfile
+import ast
 
 from datagen import generate_data
 
@@ -179,8 +177,6 @@ def uncertainty_plot(scalar_field=None,scalars=None, pts=None,
     
 def create_experiment_data(experiment_name='test_experiment', tests_params={}):
     '''
-    Required libraries:
-
     Given experiment name, takes related data_zips and
     creates the datasets needed for the experiment,
     as specified in the corresponding config file,
@@ -203,11 +199,23 @@ def create_experiment_data(experiment_name='test_experiment', tests_params={}):
     The experiment name you select must match the dataset name you generated in blender
     (EX: pig)
     '''
+    ################ READING IN CONFIG PARAMS #############################
 
-    max_anomaly_images = int(tests_params['max_anomaly_images'])
-    step_size = int(tests_params['step_size'])
+    anomaly_image_per_set_str = tests_params.get('anomaly_image_per_set', '[]')
+    try:
+        anomaly_image_per_set = ast.literal_eval(anomaly_image_per_set_str)
+
+        if not isinstance(anomaly_image_per_set, list):
+            raise ValueError("anomaly_image_per_set is not a list")
+        
+    except (ValueError, SyntaxError) as e:
+        print(f"Error parsing anomaly_image_per_set: {e}")
+        anomaly_image_per_set = []
+
     generate_single_dataset = int(tests_params['single_test'])
     single_test_anomaly_imgs = int(tests_params['single_test_anomaly_imgs']) # TODO: make this entered in terminal at runtime
+
+    ################### BEGIN DATA CREATION #############################
 
     zip_path1 = "data_zips/"+experiment_name+".zip"
     zip_path2 = "data_zips/"+experiment_name+"_missing.zip"
@@ -227,7 +235,7 @@ def create_experiment_data(experiment_name='test_experiment', tests_params={}):
                                 originalImgNum=200, anomalyImgNum=single_test_anomaly_imgs)
         else:
             # generate multiple datasets w/ different amu of anomaly images
-            for i in range(0, max_anomaly_images + 1, step_size):
+            for i in anomaly_image_per_set:
                 set_i = f"data/{experiment_name}/set{i}"
                 #print(f"Anomaly images in {set_i}:{i}")
 
@@ -248,42 +256,36 @@ def create_dataset_i(zipFilepathSet1="", zipFilepathSet2="", currentDataset="", 
     # select data randomly from old json to put into the new
     data = read_json_from_zipfile(zipFilepath=zipFilepathSet1, jsonFilename="transforms_train.json")
     new_frames = random.sample(data["frames"], n) # samples w/o replacement
-    #print(f"frame count: {len(new_frames)}")
     image_names = read_images_from_zipfile(zipFilepathSet1)
-    #print(f"image count for {currentDataset}: {len(image_names)}")
     filtered_image_names = [name for name in image_names if name in {os.path.basename(entry['file_path']) for entry in new_frames}]
-    #print(f"filtered image count for {currentDataset}: {len(filtered_image_names)}")
-    # def move images to new folder
     move_images_from_zip(filesToMove=filtered_image_names, source=zipFilepathSet1, destination=currentDataset+"/train")
-    # def rename images and corresponding dictionary filenames
     assert len(new_frames) == n
     print(f"len of new frames:{len(new_frames)}")
+
     updated_frames = rename_images_and_corresponding_dictionary_poses(directory=currentDataset+"/train", data_dict=new_frames, start_index=1)
-    print(f"len of updated frames:{len(new_frames)}")
     assert len(new_frames) == len(updated_frames)
+    print(f"len of updated frames:{len(new_frames)}")
+
     # repeat and append for anomaly
     data_anom = read_json_from_zipfile(zipFilepath=zipFilepathSet2, jsonFilename="transforms_train.json")
     new_frames_anom = random.sample(data_anom["frames"], m)
-    #print(f"anom frame count: {len(new_frames_anom)}")
     image_names_anom = read_images_from_zipfile(zipFilepathSet2)
     print(f"anom image count for {currentDataset}: {len(image_names_anom)}")
+
     filtered_image_names_anom = [name for name in image_names_anom if name in {os.path.basename(entry['file_path']) for entry in new_frames_anom}]
-    #print(f"anom filtered image count for {currentDataset}: {len(filtered_image_names_anom)}")
     print(f"combined pose frame length: {len(new_frames)+len(new_frames_anom)}")
     print(f"combined image length: {len(filtered_image_names)+len(filtered_image_names_anom)}")
+
     move_images_from_zip(filesToMove=filtered_image_names_anom, source=zipFilepathSet2, destination=currentDataset+"/train_anom")
 
-    # print(f"poses pre-change: {new_frames_anom}")
     anom_frames = rename_images_and_corresponding_dictionary_poses(directory=currentDataset+"/train_anom", data_dict=new_frames_anom, start_index=n+1)
     assert len(anom_frames) == m
-   # print(f"poses post-change:{anom_frames}")
 
     updated_frames.extend(anom_frames)
     wrapped_frames = {"frames": updated_frames}
     write_dict_to_json(dictionary=wrapped_frames, file_path=currentDataset+"/transforms_train.json")
 
     # Last Step: Cleanup
-    # def move train_anom to train, and out of the directory
     source_folder = currentDataset+"/train_anom"
     destination_folder = currentDataset+"/train"
     [shutil.move(os.path.join(source_folder, f), destination_folder) for f in os.listdir(source_folder)]
@@ -338,7 +340,7 @@ def rename_images_and_corresponding_dictionary_poses(directory: str, data_dict: 
                     print(f"Error moving {old_path} to {temp_path}: {e}")
                     continue
             
-            # Move files back to original directory with new name
+        # Move files back to original directory with new name
         for new_name in os.listdir(temp_dir):
             temp_path = os.path.join(temp_dir, new_name)
             final_path = os.path.join(directory, new_name)
