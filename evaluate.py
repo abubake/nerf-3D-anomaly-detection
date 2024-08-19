@@ -317,24 +317,19 @@ def get_nerf_pts(model: nn.Module, device: str ='cuda', N: int = 100) -> np.ndar
 if __name__ == '__main__':
     print("testing functions!")
     device = 'cuda'
+    import os
     #pth_file_k1 = 'experiments/test/set0/models/M0.pth'
     #pth_file_k2 = 'experiments/pigeye/models/M0.pth'
     #model_k1 = torch.load(pth_file_k1).to(device)
     #model_k2 = torch.load(pth_file_k2).to(device)
     # change_model = torch.load('experiments/test/set20/models/M0.pth').to(device)
     # Make into a function to call
-    pts, density = get_nerf_pts(torch.load("experiments/whale/set0/models/M0.pth").to(device))
-    pcd = o3d.geometry.PointCloud()
-    pcd.points = o3d.utility.Vector3dVector(pts.T)
-    o3d.io.write_point_cloud("gt_change_whale_m0.pcd", pcd)
 
-    import os
-    # new stuff for testing
-    base_path = 'experiments/whale/'
+    ##### FOR PIG: #########################
+    base_path = 'experiments/test/'
     set_prefix = 'set'
     model_prefix = 'M'
-
-    pcd = o3d.io.read_point_cloud("gt_test_change.pcd")
+    pcd = o3d.io.read_point_cloud("data/gt_change/gt_test_change.pcd")
     gt_points = np.asarray(pcd.points)
 
     # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7
@@ -342,7 +337,26 @@ if __name__ == '__main__':
     
     post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
                          gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
+    ################################################
+
+    ##### FOR WHALE: #########################
+    # pts, density = get_nerf_pts(torch.load("experiments/whale/set0/models/M0.pth").to(device))
+    # pcd = o3d.geometry.PointCloud()
+    # pcd.points = o3d.utility.Vector3dVector(pts.T)
+    # o3d.io.write_point_cloud("gt_change_whale_m0.pcd", pcd)
+
+    # base_path = 'experiments/whale/'
+    # set_prefix = 'set'
+    # model_prefix = 'M'
+    # pcd = o3d.io.read_point_cloud("gt_test_change.pcd")
+    # gt_points = np.asarray(pcd.points)
+
+    # # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7
+    # #                                device='cuda', N=100, neighborRadius=1, plotting=False)
     
+    # post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
+    #                      gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
+    ###################################################
 
 
 #else: # something elses
