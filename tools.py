@@ -371,7 +371,7 @@ def write_dict_to_json(dictionary, file_path):
     try:
         with open(file_path, 'w') as json_file:
             json.dump(dictionary, json_file, indent=4)  # indent=4 for pretty formatting
-        print(f"Dictionary successfully written to {file_path}")
+        print(f"Dictionary successfully written to {file_path} \n")
     except Exception as e:
         print(f"An error occurred: {e}")
 

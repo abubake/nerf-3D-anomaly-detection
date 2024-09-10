@@ -79,11 +79,11 @@ def pyvista_plot(*points: np.ndarray, values: np.ndarray, plotTitle: str):
 if __name__ == '__main__':
 
     device = 'cuda'
-    pth_file_k1 = 'experiments/test/set0/models/M0.pth'
-    pth_file_k2 = 'experiments/pigeye/models/M0.pth'
+    pth_file_k1 = 'experiments/whale/set0/models/M0.pth'
+    #pth_file_k2 = 'experiments/pigeye/models/M0.pth'
     model_k1 = torch.load(pth_file_k1).to(device)
-    model_k2 = torch.load(pth_file_k2).to(device)
-    change_model = torch.load('experiments/test/set20/models/M0.pth').to(device)
+    #model_k2 = torch.load(pth_file_k2).to(device)
+    change_model = torch.load('experiments/whale/set25/models/M0.pth').to(device) # change whale to test or other model name
 
     # change_pts_gt = get_nerf_change_pts(k1Model=model_k1, k2Model=model_k2, device='cuda') # (3xN)
 
@@ -91,7 +91,7 @@ if __name__ == '__main__':
     # pcd.points = o3d.utility.Vector3dVector(change_pts_gt.T)
     # o3d.io.write_point_cloud("gt_change.pcd", pcd)
 
-    pcd = o3d.io.read_point_cloud("gt_test_change.pcd")
+    pcd = o3d.io.read_point_cloud("data/gt_change/gt_whale_change.pcd")
     gt_points = np.asarray(pcd.points)
 
     #pyvista_plot(gt_points, values=np.ones(len(gt_points)), plotTitle="ground truth change")
@@ -101,7 +101,7 @@ if __name__ == '__main__':
     
     nerf_points, density = get_nerf_pts(model=model_k1)
     N = 100
-    densityThreshold = 7
+    densityThreshold = 7 # was 7
     density = density.reshape(N, N, N)
     pts, values  = tools.uncertainty_plot(scalar_field=density, scalars=None, pts=None,
                                      threshold=densityThreshold, plot=False, plotTitle="density plot")

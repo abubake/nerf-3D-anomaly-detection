@@ -247,10 +247,22 @@ def get_nerf_uncert_threshold_pts(model: nn.Module, densityThreshold: int, chang
         CoV.append(coeff_variation)
 
     # Find range of CoV and threshold based on it:
-    uncert_array = np.stack([t.numpy() for t in CoV])
+    try: # try catch block bc there was an error with stacking
+        uncert_array = np.stack([t.numpy() for t in CoV])
+    except Exception as e:
+        print(f"issue with stacking array of CoV: {e}. ")
+        uncert_array = np.array([1,2,3]) # dummy array so code can still run
+        print(f"pts {pts}")
+        print(f"CoV {CoV}")
+
     max_uncertainty = np.nanmax(uncert_array)
-    estimated_change_pts = uncertainty_plot(scalar_field=None, scalars=np.array(CoV), pts=pts,
+
+    try:
+        estimated_change_pts = uncertainty_plot(scalar_field=None, scalars=np.array(CoV), pts=pts,
                                              threshold=max_uncertainty*changeThreshold, plot=plotting, plotTitle="CoV plot")
+    except Exception as e:
+        print(f"issue with finding estimated change points: {e}. Setting estimated change points equal to 0 ")
+        estimated_change_pts = 0
 
     return estimated_change_pts
     
@@ -304,7 +316,7 @@ def get_nerf_pts(model: nn.Module, device: str ='cuda', N: int = 100) -> np.ndar
     
     density = density.cpu().numpy().reshape(N, N, N)
 
-    threshold = 1 # threshold gets rid of some noise points
+    threshold = 1 # threshold gets rid of some noise points # was 1
 
     above_threshold_mask = density > threshold
     x_coords, y_coords, z_coords = np.where(above_threshold_mask)
@@ -326,17 +338,17 @@ if __name__ == '__main__':
     # Make into a function to call
 
     ##### FOR PIG: #########################
-    base_path = 'experiments/test/'
-    set_prefix = 'set'
-    model_prefix = 'M'
-    pcd = o3d.io.read_point_cloud("data/gt_change/gt_test_change.pcd")
-    gt_points = np.asarray(pcd.points)
+    # base_path = 'experiments/test/'
+    # set_prefix = 'set'
+    # model_prefix = 'M'
+    # pcd = o3d.io.read_point_cloud("data/gt_change/gt_test_change.pcd")
+    # gt_points = np.asarray(pcd.points)
 
-    # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7
-    #                                device='cuda', N=100, neighborRadius=1, plotting=False)
+    # # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7
+    # #                                device='cuda', N=100, neighborRadius=1, plotting=False)
     
-    post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
-                         gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
+    # post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
+    #                      gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
     ################################################
 
     ##### FOR WHALE: #########################
@@ -345,17 +357,17 @@ if __name__ == '__main__':
     # pcd.points = o3d.utility.Vector3dVector(pts.T)
     # o3d.io.write_point_cloud("gt_change_whale_m0.pcd", pcd)
 
-    # base_path = 'experiments/whale/'
-    # set_prefix = 'set'
-    # model_prefix = 'M'
-    # pcd = o3d.io.read_point_cloud("gt_test_change.pcd")
-    # gt_points = np.asarray(pcd.points)
+    base_path = 'experiments/whale/'
+    set_prefix = 'set'
+    model_prefix = 'M'
+    pcd = o3d.io.read_point_cloud("data/gt_change/gt_whale_change.pcd")
+    gt_points = np.asarray(pcd.points)
 
-    # # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7
-    # #                                device='cuda', N=100, neighborRadius=1, plotting=False)
+    # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7
+    #                                device='cuda', N=100, neighborRadius=1, plotting=False)
     
-    # post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
-    #                      gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
+    post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
+                         gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
     ###################################################
 
 
