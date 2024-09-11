@@ -96,13 +96,17 @@ def load_models_from_experiments(single_test: int = 0, base_directory: str = "ex
         '''
         Loads training models from experiment folder.
         '''
+        model_folders: List[str] = []
+
         if single_test == 1:
             experiment_directory = os.path.join(os.path.join(base_directory, experiment_name), 'models')
             print(f"pulling models from directory: {experiment_directory}")
-            exit("single test not implmented")
+
+            #model_folders.append(os.path.join('data', experiment_name))
+
+            #exit("single test not implemented")
         else:
             experiment_directory: List[str] = []
-            model_folders: List[str] = []
 
             for folder in os.listdir(os.path.join('data', experiment_name)):
                 model_folders.append(folder)
@@ -175,7 +179,7 @@ def uncertainty_plot(scalar_field=None,scalars=None, pts=None,
 
         return np.column_stack((x_coords, y_coords, z_coords))
     
-def create_experiment_data(experiment_name='test_experiment', tests_params={}):
+def create_experiment_data(experiment_name='test_experiment', experiment_type='missing', tests_params={}):
     '''
     Given experiment name, takes related data_zips and
     creates the datasets needed for the experiment,
@@ -214,11 +218,13 @@ def create_experiment_data(experiment_name='test_experiment', tests_params={}):
 
     generate_single_dataset = int(tests_params['single_test'])
     single_test_anomaly_imgs = int(tests_params['single_test_anomaly_imgs']) # TODO: make this entered in terminal at runtime
+    total_images = int(tests_params['imgs'])
 
     ################### BEGIN DATA CREATION #############################
 
-    zip_path1 = "data_zips/"+experiment_name+".zip"
-    zip_path2 = "data_zips/"+experiment_name+"_missing.zip"
+    zip_path1 = f"data_zips/{experiment_name}.zip"
+
+    zip_path2 = f"data_zips/{experiment_name}_{experiment_type}.zip"
 
     # Step 1: Check if there is already experiment data created.
     if os.path.isdir("data/"+experiment_name):
@@ -232,7 +238,7 @@ def create_experiment_data(experiment_name='test_experiment', tests_params={}):
             set_i = f"data/{experiment_name}/set{single_test_anomaly_imgs}"
             os.makedirs(set_i, exist_ok=True)
             create_dataset_i(zipFilepathSet1=zip_path1, zipFilepathSet2=zip_path2, currentDataset=set_i,
-                                originalImgNum=200, anomalyImgNum=single_test_anomaly_imgs)
+                                originalImgNum=total_images, anomalyImgNum=single_test_anomaly_imgs)
         else:
             # generate multiple datasets w/ different amu of anomaly images
             for i in anomaly_image_per_set:
@@ -241,7 +247,7 @@ def create_experiment_data(experiment_name='test_experiment', tests_params={}):
 
                 os.makedirs(set_i, exist_ok=True)
                 create_dataset_i(zipFilepathSet1=zip_path1, zipFilepathSet2=zip_path2, currentDataset=set_i,
-                                originalImgNum=200, anomalyImgNum=i)
+                                originalImgNum=total_images, anomalyImgNum=i)
 
         print("- Required datasets created for the experiment")
 

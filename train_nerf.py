@@ -26,6 +26,7 @@ def main(args):
     imgs = config.getint('EXPERIMENT', 'imgs')
     #pth_file = config.get('EXPERIMENT', 'pth_file')
     experiment_name = config.get('EXPERIMENT', 'experiment_name')
+    experiment_type = config.get('EXPERIMENT', 'anomaly_type')
     device = config.get('EXPERIMENT', 'device')
     tn = config.getfloat('EXPERIMENT', 'tn')
     tf = config.getfloat('EXPERIMENT', 'tf')
@@ -44,7 +45,7 @@ def main(args):
         print(f"Section {section} not found in the {args.conf}")
 
     # Start here!
-    create_experiment_data(experiment_name, test_params)
+    create_experiment_data(experiment_name, experiment_type, test_params)
     setup_experiment_folders(experiment_name)
     train_models(experiment_name, ensembles, lr, gamma, tn, tf, nb_bins,
                   nb_epochs, batch_size, imgs, height, width, device)
