@@ -6,10 +6,12 @@ import torch
 import torch.nn as nn
 import numpy as np
 import open3d as o3d
+import textwrap
 from scipy.spatial import KDTree
 from sklearn.metrics import roc_auc_score, confusion_matrix
 import seaborn as sns
 import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D
 from typing import Tuple, List
 from tools import uncertainty_plot
 from pytorch3d.ops import box3d_overlap
@@ -19,15 +21,8 @@ def post_process_models(basePath: str, setPrefix: str, modelPrefix: str, gtChang
         Iterates through all models generated during an experiment, and calculates their results.
 
         Args:
-            - 
+            - gtChangePoints: pointcloud data of points within the volume of the changed region. If None, model will simply predict change points.
         '''
-
-        # Function to check if a file exists
-        # def model_exists(setNum, modelNum, basePath, setPrefix, modelPrefix, modelSuffix):
-        #     set_path = os.path.join(basePath, f'{setPrefix}{setNum}', 'models')
-        #     model_path = os.path.join(set_path, f'{modelPrefix}{modelNum}{modelSuffix}')
-        #     return os.path.isfile(model_path)
-
         # List all directories in the base_path that start with 'set'
         set_dirs = [d for d in os.listdir(basePath) if os.path.isdir(os.path.join(basePath, d)) and d.startswith(setPrefix)]
         set_dirs.sort(key=lambda x: int(x[len(setPrefix):]))
@@ -36,26 +31,21 @@ def post_process_models(basePath: str, setPrefix: str, modelPrefix: str, gtChang
         for set_name in set_dirs:
             model_num = 0
             while True:
-                # if not model_exists(set_name, model_num, basePath, setPrefix, modelPrefix, modelSuffix):
-                #     if model_num == 0:
-                #         print(f'No models found in set {set_name}')
-                #     break  # No more models in this set
+
                 model_path = os.path.join(basePath, set_name, 'models', f'{modelPrefix}{model_num}{modelSuffix}')
                 # model processing code
                 change_model = torch.load(model_path).to(device)
 
-                if set_name != 'set0':
+                print(f'Processing model {model_num} in set {set_name}: {model_path}')
 
-                    print(f'Processing model {model_num} in set {set_name}: {model_path}')
-
-                    best_result = post_process_model_i(groundtruthPoints=gtChangePoints, changedModel=change_model, # model for set 20. Need to make iterate across all sets
-                                radii=[1, 1.5, 2, 2.5, 3, 3.5, 4],
-                                densityThresholds=[0.5, 1, 2, 3, 4, 6, 8, 10, 20], # how many of the intial points to threshold out - (need some for CoV)
-                                changeThresholds=[.1, .2, .3, .4, .5, .6, .7, .8, .9], # percentage of uncertainty range at which to threshold out points
-                                resultDir=f"{base_path}{set_name}/figures",
-                                device=device)
-                    print(f"Best result for {set_name}: {best_result}")
-                    model_num += 1 # used if there are ensembles
+                best_result = post_process_model_i(groundtruthPoints=gtChangePoints, changedModel=change_model, # model for set 20. Need to make iterate across all sets
+                            radii=[1, 1.5, 2, 2.5, 3, 3.5, 4],
+                            densityThresholds=[0.5, 1, 2, 3, 4, 6, 8, 10, 20], # how many of the intial points to threshold out - (need some for CoV)
+                            changeThresholds=[.6, .7, .8, .9], # percentage of uncertainty range at which to threshold out points
+                            resultDir=f"{base_path}{set_name}/figures",
+                            device=device)
+                print(f"Best result for {set_name}: {best_result}")
+                model_num += 1 # used if there are ensembles
 
                 break
 
@@ -64,14 +54,13 @@ def get_hyperparameter_ranges() -> List[List[int]]:
     Determines what range is available for testing of density and change
     '''
 
-
 def post_process_model_i(groundtruthPoints: np.ndarray, changedModel: nn.Module, radii: List[int],
                           densityThresholds: List[int], changeThresholds: List[int], resultDir: str, device: str ='cuda'): # should be getting these values from the config, as lists
     '''
     Given a ground truth points, evaluate metrics across model parameters.
 
     args:
-        - groundtruthPoints: the ground truth change points
+        - groundtruthPoints: the ground truth change points- if None then IoU results not returned.
         - changedModel: the nerf model trained on the mixed training data of scene 1 and scene 2
         - radii: list of desired radii you would like to test for neighbor algorithm
         - densityThresholds: List of densities you would like to evaluate at
@@ -82,41 +71,91 @@ def post_process_model_i(groundtruthPoints: np.ndarray, changedModel: nn.Module,
     '''
     results_path = f"{resultDir}/results.txt"
     best_result = [0,0,0,0,0]
+    iou_3d = "NA"
+    intersection_vol = "NA"
 
     with open(results_path, 'a') as file:
-        headers = ['radius', 'density threshold', 'change threshold', '3D IoU', 'Intersection Vol.']
+        headers = ['iter', 'radius', 'density threshold', 'change threshold', '3D IoU', 'Intersection Vol.']
         headers_str = ' '.join(headers)
         file.write(headers_str + '\n')
 
+    loop_count = 0
     for r in radii: # where we test multiple radius
         for thr in densityThresholds:
             for threshold in changeThresholds: # percentages
 
                 estimated_change_pts = get_nerf_uncert_threshold_pts(model=changedModel, densityThreshold=thr, changeThreshold=threshold,
                                    device='cuda', N=100, neighborRadius=r, plotting=False)
-                
+
                 if len(estimated_change_pts) < 8: # if not enough points to form a 3d bbox then simply return none
                     with open(results_path, 'a') as file:
-                        values = [r, thr, threshold, 'NONE', 'NONE']
+                        values = [loop_count, r, thr, threshold, 'NONE', 'NONE']
                         values_str = ' '.join(map(str, values))
                         file.write(values_str + '\n')
                 else:   
                     arr1 = groundtruthPoints # (M x 3) # make certain this is the right dims
                     arr2 = estimated_change_pts # (N x 3)
 
-                    # Evaluation method 1
-                    iou_3d, intersection_vol = get_nerfChange_boxIOU(torch.from_numpy(arr1).to(torch.float32), torch.from_numpy(arr2).to(torch.float32))
+                    if (groundtruthPoints != None) or (resultDir.split('/')[-2] != 'set0'):
+                        # Evaluation method 1
+                        iou_3d, intersection_vol = get_nerfChange_boxIOU(torch.from_numpy(arr1).to(torch.float32), torch.from_numpy(arr2).to(torch.float32))
 
-                    if iou_3d > best_result[3]:
-                        best_result = [r,thr,threshold,iou_3d,intersection_vol]
+                        if iou_3d > best_result[3]:
+                            best_result = [r,thr,threshold,iou_3d,intersection_vol]
+
+                    # Get the model path for the original model
+                    set_name = resultDir.split('/')[-2]
+                    set0_model_path = resultDir.replace(f"{set_name}/figures", "set0/models")
+                    create_3D_uncertainty_figure(estimatedChangePoints = estimated_change_pts, modelDir = set0_model_path, resultDir = resultDir,
+                                                iter=loop_count, plotTitle=f"Change for radius: {r}, density threshold: {thr}, change Threshold: {threshold}")
 
                     with open(results_path, 'a') as file:
-                        values = [r, thr, threshold, iou_3d, intersection_vol]
+                        values = [loop_count, r, thr, threshold, iou_3d, intersection_vol]
                         values_str = ' '.join(map(str, values))
                         file.write(values_str + '\n')
 
+                    loop_count += 1
+
     return best_result
     
+def create_3D_uncertainty_figure(estimatedChangePoints, modelDir, resultDir, iter,
+                                 plotTitle=f"aleatoric points for radius {None}, density threshold {None} and change Threshold {None}"):
+    '''
+    Creates a 3D plot of uncertainty plotted on the scene.
+    You can see which iter the images are associated with by referencing the results.txt
+    Args
+        - 
+    '''
+    model = torch.load(f"{modelDir}/M0.pth")
+    object_points, _ = get_nerf_pts(model=model, device='cpu', N=100) # could also return density and threshold some out
+    object_points = object_points.T
+    change_points = estimatedChangePoints
+
+    fig = plt.figure()
+    ax = fig.add_subplot(111, projection='3d')
+    # Plot the object points (blue)
+    ax.scatter(object_points[:, 0], object_points[:, 1], object_points[:, 2], color='blue', s=.1)
+    # Plot the change points (orange)
+    ax.scatter(change_points[:, 0], change_points[:, 1], change_points[:, 2], color='orange', s=1)
+
+    # if no folder exists, create a folder in figures
+    output_dir = os.path.join(resultDir, f"uncert_plots/iter{iter}_uncert_plots")
+    if not os.path.exists(output_dir):
+        os.makedirs(output_dir)
+
+    num_views = 5
+    angles = np.linspace(0, 360, num_views, endpoint=False)  # Azimuth angles
+    elevations = np.linspace(10, 80, num_views)              # Elevation angles
+
+    for i, (azim, elev) in enumerate(zip(angles, elevations)):
+        ax.view_init(elev=elev, azim=azim)  # Set the elevation and azimuth
+        title = f'{plotTitle}. Viewpoint {i+1}: Elev={elev}°, Azim={azim}°'
+        wrapped_title = "\n".join(textwrap.wrap(title, width=50))
+        ax.set_title(wrapped_title, fontsize=10, pad=30)
+        plt.tight_layout()
+        plt.savefig(f'{output_dir}/plot_view_{i}.png')   # Save the plot from this angle
+        ax.set_title('')
+    plt.close(fig)
 
 
 def get_nerfChange_boxIOU(changeGroundtruthPoints: torch.tensor,
@@ -357,7 +396,7 @@ if __name__ == '__main__':
     # pcd.points = o3d.utility.Vector3dVector(pts.T)
     # o3d.io.write_point_cloud("gt_change_whale_m0.pcd", pcd)
 
-    base_path = 'experiments/whale/'
+    base_path = 'experiments/mball/'
     set_prefix = 'set'
     model_prefix = 'M'
     pcd = o3d.io.read_point_cloud("data/gt_change/gt_whale_change.pcd")
@@ -367,7 +406,7 @@ if __name__ == '__main__':
     #                                device='cuda', N=100, neighborRadius=1, plotting=False)
     
     post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
-                         gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
+                         gtChangePoints=None, modelSuffix='.pth', device='cuda')
     ###################################################
 
 
