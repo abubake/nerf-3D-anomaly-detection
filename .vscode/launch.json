@@ -1,16 +1,3 @@
-// {
-//     "version": "0.2.0",
-//     "configurations": [
-//         {
-//             "name": "Python Debugger: Current File with Arguments",
-//             "type": "debugpy",
-//             "request": "launch",
-//             "program": "train_nerf.py",
-//             "console": "integratedTerminal",
-//             "args": "--conf configs/whale.conf"
-//         }
-//     ]
-// }
 {
     "version": "0.2.0",
     "configurations": [
@@ -18,8 +5,21 @@
             "name": "Python Debugger: Current File with Arguments",
             "type": "debugpy",
             "request": "launch",
-            "program": "evaluate.py",
+            "program": "train_nerf.py",
             "console": "integratedTerminal",
+            "args": "--conf configs/mball.conf"
         }
     ]
 }
+// {
+//     "version": "0.2.0",
+//     "configurations": [
+//         {
+//             "name": "Python Debugger: Current File with Arguments",
+//             "type": "debugpy",
+//             "request": "launch",
+//             "program": "evaluate.py",
+//             "console": "integratedTerminal",
+//         }
+//     ]
+// }

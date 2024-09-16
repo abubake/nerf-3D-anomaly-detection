@@ -85,7 +85,7 @@ def load_experiment_models(config_path: str, device: str ='cuda') -> dict[List[s
     try:
         base_directory = config['EXPERIMENT']['base_directory']
         experiment_name = config['EXPERIMENT']['experiment_name']
-        single_test = int(config['TESTS']['single_test'])
+        single_test = config.get('single_test', 'false').lower() == 'true'
     except KeyError as e:
         print(f"Missing configuration key: {e}")
 
@@ -98,14 +98,14 @@ def load_models_from_experiments(single_test: int = 0, base_directory: str = "ex
         '''
         model_folders: List[str] = []
 
-        if single_test == 1:
+        if single_test == True:
             experiment_directory = os.path.join(os.path.join(base_directory, experiment_name), 'models')
             print(f"pulling models from directory: {experiment_directory}")
 
             #model_folders.append(os.path.join('data', experiment_name))
 
             #exit("single test not implemented")
-        else:
+        elif single_test == False:
             experiment_directory: List[str] = []
 
             for folder in os.listdir(os.path.join('data', experiment_name)):
@@ -113,6 +113,8 @@ def load_models_from_experiments(single_test: int = 0, base_directory: str = "ex
                 print(f"current folder: {folder}")
                 experiment_directory.append(os.path.join(os.path.join(base_directory, experiment_name),
                                                           os.path.join(folder, 'models')))
+        else:
+            print(f"Single_test={single_test}, {type(single_test)} is not a valid option. It should be true or false (bool).")
 
         # Initialize a dict to store the loaded models or data
         loaded_models: dict = {key: [] for key in model_folders}
@@ -204,7 +206,7 @@ def create_experiment_data(experiment_name='test_experiment', experiment_type='m
     (EX: pig)
     '''
     ################ READING IN CONFIG PARAMS #############################
-
+    dataset_reverse = tests_params.get('dataset_reverse', False).lower() == 'true'
     anomaly_image_per_set_str = tests_params.get('anomaly_image_per_set', '[]')
     try:
         anomaly_image_per_set = ast.literal_eval(anomaly_image_per_set_str)
@@ -216,15 +218,21 @@ def create_experiment_data(experiment_name='test_experiment', experiment_type='m
         print(f"Error parsing anomaly_image_per_set: {e}")
         anomaly_image_per_set = []
 
-    generate_single_dataset = int(tests_params['single_test'])
+    generate_single_dataset = tests_params.get('single_test', 'false').lower() == 'true'
     single_test_anomaly_imgs = int(tests_params['single_test_anomaly_imgs']) # TODO: make this entered in terminal at runtime
     total_images = int(tests_params['imgs'])
 
     ################### BEGIN DATA CREATION #############################
+    if dataset_reverse == False: # generate data as normal
+        zip_path1 = f"data_zips/{experiment_name}.zip"
+        zip_path2 = f"data_zips/{experiment_name}_{experiment_type}.zip"
+    elif dataset_reverse == True: # reverse test. train the opposite ratios from the two zip files.
+        zip_path2 = f"data_zips/{experiment_name}.zip"
+        zip_path1 = f"data_zips/{experiment_name}_{experiment_type}.zip" # the previously timestep 2 dataset becomes the timestep 1 dataset.
+    else:
+        print("not a valid input for dataset options. Should be dataset_reverse should be false or true.")
 
-    zip_path1 = f"data_zips/{experiment_name}.zip"
-
-    zip_path2 = f"data_zips/{experiment_name}_{experiment_type}.zip"
+        
 
     # Step 1: Check if there is already experiment data created.
     if os.path.isdir("data/"+experiment_name):

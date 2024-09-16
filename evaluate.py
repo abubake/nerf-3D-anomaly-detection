@@ -396,17 +396,17 @@ if __name__ == '__main__':
     # pcd.points = o3d.utility.Vector3dVector(pts.T)
     # o3d.io.write_point_cloud("gt_change_whale_m0.pcd", pcd)
 
-    base_path = 'experiments/mball/'
+    base_path = 'experiments/mball_big/'
     set_prefix = 'set'
     model_prefix = 'M'
-    pcd = o3d.io.read_point_cloud("data/gt_change/gt_whale_change.pcd")
+    pcd = o3d.io.read_point_cloud("data/gt_change/gt_mball_change.pcd")
     gt_points = np.asarray(pcd.points)
 
     # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7
     #                                device='cuda', N=100, neighborRadius=1, plotting=False)
     
     post_process_models(basePath=base_path, setPrefix=set_prefix, modelPrefix=model_prefix,
-                         gtChangePoints=None, modelSuffix='.pth', device='cuda')
+                         gtChangePoints=gt_points, modelSuffix='.pth', device='cuda')
     ###################################################
 
 

@@ -40,9 +40,24 @@ def main(args):
     section = 'TESTS'
     test_params = {}
     if section in config:
-        test_params = {key: config.get(section, key) for key in config[section]}
+        for key in config[section]:
+            value = config[section][key]
+
+            # Handle boolean values
+            if value.lower() in ['True', 'False']:
+                test_params[key] = config.getboolean(section, key)
+            # Handle integer values
+            elif value.isdigit():
+                test_params[key] = config.getint(section, key)
+            # Handle float values
+            elif value.replace('.', '', 1).isdigit():
+                test_params[key] = config.getfloat(section, key)
+            # Otherwise, treat it as a string
+            else:
+                test_params[key] = value
     else:
         print(f"Section {section} not found in the {args.conf}")
+
 
     # Start here!
     create_experiment_data(experiment_name, experiment_type, test_params)
