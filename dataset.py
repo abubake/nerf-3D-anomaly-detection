@@ -32,7 +32,13 @@ def get_rays(datapath, mode='train'):
         
         # Read images
         img = imageio.imread(datapath + '/imgs/' + name.replace('txt', 'png')) / 255.
-        images.append(img[None, ...])
+
+        if img.shape[-1] == 4:
+            img = img[:, :, :3]
+            images.append(img[None, ...])
+        else:
+            images.append(img[None, ...])
+
     images = np.concatenate(images)
     
     H = images.shape[1]

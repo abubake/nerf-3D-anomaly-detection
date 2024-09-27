@@ -25,6 +25,8 @@ def main(args):
     width = config.getint('EXPERIMENT', 'width')
     imgs = config.getint('EXPERIMENT', 'imgs')
     #pth_file = config.get('EXPERIMENT', 'pth_file')
+    scene1_dataset_name = config.get('EXPERIMENT', 'scene1_dataset_name')
+    scene2_dataset_name = config.get('EXPERIMENT', 'scene2_dataset_name')
     experiment_name = config.get('EXPERIMENT', 'experiment_name')
     experiment_type = config.get('EXPERIMENT', 'anomaly_type')
     device = config.get('EXPERIMENT', 'device')
@@ -91,6 +93,7 @@ def train_models(experiment_name, ensembles,lr, gamma, tn, tf, nb_bins,
     args:
         x 
     '''
+    #TODO: make it run based on which tests you would like to run in the cofig, not diretly from the data.
     directories = sorted([name for name in os.listdir(f"data/{experiment_name}") 
                           if os.path.isdir(os.path.join(f"data/{experiment_name}", name))])
     for directory in directories: # for each individual set of data in the dataset we are running, execute.

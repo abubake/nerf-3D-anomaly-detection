@@ -2,6 +2,7 @@ from tqdm import tqdm
 from rendering import rendering, render_uncert
 import numpy as np
 import torch
+import time
 
 def training(model, optimizer, scheduler, tn, tf, nb_bins, nb_epochs, data_loader, model_name='nerf/torus1.pth', device='cpu'):
 
@@ -13,7 +14,12 @@ def training(model, optimizer, scheduler, tn, tf, nb_bins, nb_epochs, data_loade
     '''
     
     training_loss = []
+    start_training_time = time.time()
+
     for epoch in (range(nb_epochs)):
+
+        epoch_start_time = time.time()
+
         for batch in tqdm(data_loader):
             o = batch[:, :3].to(device)
             d = batch[:, 3:6].to(device)
@@ -28,11 +34,18 @@ def training(model, optimizer, scheduler, tn, tf, nb_bins, nb_epochs, data_loade
             loss.backward()
             optimizer.step()
             training_loss.append(loss.item())
-            
+
+        epoch_end_time = time.time()
+        epoch_duration = epoch_end_time - epoch_start_time
+        print(f"Final training loss for epoch {epoch} = {training_loss[-1]}")
+        print(f"Time for epoch {epoch}: {epoch_duration:.2f} seconds")
+
         scheduler.step()
-        
         torch.save(model.cpu(), model_name)
         model.to(device)
+
+    total_training_time = time.time() - start_training_time
+    print(f"Total training time: {total_training_time:.2f} seconds")
         
     return training_loss
 

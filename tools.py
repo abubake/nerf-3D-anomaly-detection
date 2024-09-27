@@ -218,7 +218,7 @@ def create_experiment_data(experiment_name='test_experiment', experiment_type='m
         print(f"Error parsing anomaly_image_per_set: {e}")
         anomaly_image_per_set = []
 
-    generate_single_dataset = tests_params.get('single_test', 'false').lower() == 'true'
+    generate_single_dataset = tests_params.get('generate_single_dataset', 'false').lower() == 'true'
     single_test_anomaly_imgs = int(tests_params['single_test_anomaly_imgs']) # TODO: make this entered in terminal at runtime
     total_images = int(tests_params['imgs'])
 
@@ -238,10 +238,9 @@ def create_experiment_data(experiment_name='test_experiment', experiment_type='m
     if os.path.isdir("data/"+experiment_name):
         print(f"- Training data for running the experiment already exists, or another experiment already has the name '{experiment_name}'")
     else:
-        # Create new folder "experiment_name"
         os.makedirs("data/"+experiment_name)
-        #assert generate_single_dataset == 1
-        if generate_single_dataset == 1:
+
+        if generate_single_dataset:
 
             set_i = f"data/{experiment_name}/set{single_test_anomaly_imgs}"
             os.makedirs(set_i, exist_ok=True)

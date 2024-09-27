@@ -7,7 +7,7 @@ from evaluate import get_nerf_uncert_threshold_pts
 from evaluate import get_bbox_3d
 import tools as tools
 
-def plot_object_with_bbox(changePoints: np.ndarray, objectPoints: np.ndarray,
+def plot_object_with_bbox(changePoints: np.ndarray, changeValues: np.ndarray, objectPoints: np.ndarray,
                            plotTitle: str = "Object with bbox estimate", gtChangePoints: np.ndarray = None):
     '''
     Plots the bounding box result on a pyvista plot
@@ -23,8 +23,23 @@ def plot_object_with_bbox(changePoints: np.ndarray, objectPoints: np.ndarray,
     bbox_np = bbox.detach().cpu().numpy().reshape(-1, 3)
 
     plotter = pv.Plotter(title=plotTitle)
+
+    if changeValues is not None:
+        # Normalize the values to get relative sizes
+        changeValues_filled = np.nan_to_num(changeValues, nan=0.0)
+        changeValues_normalized = (changeValues_filled / (changeValues_filled.max() + 1e-8))
+
+        min_size = 1  # Minimum point size
+        max_size = 20  # Maximum point size
+        # point_sizes = min_size + changeValues_normalized * (max_size - min_size) # linear scaling
+        point_sizes = min_size + (changeValues_normalized ** 2) * (max_size - min_size) # exponential scale
+
+        for i, point in enumerate(changePoints):
+            plotter.add_points(point.reshape(1, -1), color='orange', render_points_as_spheres=True, point_size=point_sizes[i])
+    else:
+        plotter.add_points(changePoints, scalars=np.ones(len(changePoints)), color='orange')
+    
     plotter.add_points(objectPoints, scalars=np.ones(len(objectPoints)), cmap="inferno")
-    plotter.add_points(changePoints, scalars=np.ones(len(changePoints)), color='blue')
     plotter.add_points(bbox_np, color='red')
 
     edges = [
@@ -79,11 +94,11 @@ def pyvista_plot(*points: np.ndarray, values: np.ndarray, plotTitle: str):
 if __name__ == '__main__':
 
     device = 'cuda'
-    pth_file_k1 = 'experiments/whale/set0/models/M0.pth'
+    pth_file_k1 = 'experiments/suzanne/set0/models/M0.pth'
     #pth_file_k2 = 'experiments/pigeye/models/M0.pth'
     model_k1 = torch.load(pth_file_k1).to(device)
     #model_k2 = torch.load(pth_file_k2).to(device)
-    change_model = torch.load('experiments/whale/set25/models/M0.pth').to(device) # change whale to test or other model name
+    change_model = torch.load('experiments/suzanne/set10/models/M0.pth').to(device) # change whale to test or other model name
 
     # change_pts_gt = get_nerf_change_pts(k1Model=model_k1, k2Model=model_k2, device='cuda') # (3xN)
 
@@ -91,13 +106,13 @@ if __name__ == '__main__':
     # pcd.points = o3d.utility.Vector3dVector(change_pts_gt.T)
     # o3d.io.write_point_cloud("gt_change.pcd", pcd)
 
-    pcd = o3d.io.read_point_cloud("data/gt_change/gt_whale_change.pcd")
+    pcd = o3d.io.read_point_cloud("data/gt_change/gt_suzanne_change.pcd")
     gt_points = np.asarray(pcd.points)
 
     #pyvista_plot(gt_points, values=np.ones(len(gt_points)), plotTitle="ground truth change")
     
-    estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=1, changeThreshold=.9,
-                                      device='cuda', N=100, neighborRadius=2, plotting=False) # (Nx3)
+    estimated_change_pts, uncert_values = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=3, changeThreshold=.9,
+                                      device='cuda', N=100, neighborRadius=4, plotting=False) # (Nx3)
     
     nerf_points, density = get_nerf_pts(model=model_k1)
     N = 100
@@ -106,7 +121,7 @@ if __name__ == '__main__':
     pts, values  = tools.uncertainty_plot(scalar_field=density, scalars=None, pts=None,
                                      threshold=densityThreshold, plot=False, plotTitle="density plot")
 
-    plot_object_with_bbox(changePoints=estimated_change_pts, objectPoints=pts,
+    plot_object_with_bbox(changePoints=estimated_change_pts, changeValues=uncert_values, objectPoints=pts,
                            plotTitle="Best box so far", gtChangePoints=gt_points)
     
     # pyvista_plot(estimated_change_pts, values=np.ones(len(estimated_change_pts)), plotTitle="est. change")

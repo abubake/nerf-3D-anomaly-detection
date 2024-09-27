@@ -96,25 +96,26 @@ def post_process_model_i(groundtruthPoints: np.ndarray, changedModel: nn.Module,
                     arr1 = groundtruthPoints # (M x 3) # make certain this is the right dims
                     arr2 = estimated_change_pts # (N x 3)
 
-                    if (groundtruthPoints != None) or (resultDir.split('/')[-2] != 'set0'):
+                    set_name = resultDir.split('/')[-2]
+                    if (groundtruthPoints is not None) and (set_name != 'set0'):
                         # Evaluation method 1
                         iou_3d, intersection_vol = get_nerfChange_boxIOU(torch.from_numpy(arr1).to(torch.float32), torch.from_numpy(arr2).to(torch.float32))
 
                         if iou_3d > best_result[3]:
                             best_result = [r,thr,threshold,iou_3d,intersection_vol]
 
-                    # Get the model path for the original model
-                    set_name = resultDir.split('/')[-2]
-                    set0_model_path = resultDir.replace(f"{set_name}/figures", "set0/models")
-                    create_3D_uncertainty_figure(estimatedChangePoints = estimated_change_pts, modelDir = set0_model_path, resultDir = resultDir,
-                                                iter=loop_count, plotTitle=f"Change for radius: {r}, density threshold: {thr}, change Threshold: {threshold}")
+                # Get the model path for the original model
+                set_name = resultDir.split('/')[-2]
+                set0_model_path = resultDir.replace(f"{set_name}/figures", "set0/models")
+                create_3D_uncertainty_figure(estimatedChangePoints = estimated_change_pts, modelDir = set0_model_path, resultDir = resultDir,
+                                            iter=loop_count, plotTitle=f"Change for radius: {r}, density threshold: {thr}, change Threshold: {threshold}")
 
-                    with open(results_path, 'a') as file:
-                        values = [loop_count, r, thr, threshold, iou_3d, intersection_vol]
-                        values_str = ' '.join(map(str, values))
-                        file.write(values_str + '\n')
+                with open(results_path, 'a') as file:
+                    values = [loop_count, r, thr, threshold, iou_3d, intersection_vol]
+                    values_str = ' '.join(map(str, values))
+                    file.write(values_str + '\n')
 
-                    loop_count += 1
+                loop_count += 1
 
     return best_result
     
@@ -134,9 +135,10 @@ def create_3D_uncertainty_figure(estimatedChangePoints, modelDir, resultDir, ite
     fig = plt.figure()
     ax = fig.add_subplot(111, projection='3d')
     # Plot the object points (blue)
-    ax.scatter(object_points[:, 0], object_points[:, 1], object_points[:, 2], color='blue', s=.1)
+    ax.scatter(object_points[:, 0], object_points[:, 1], object_points[:, 2], color='blue', s=.1, alpha=0.7, label='Object Points')
     # Plot the change points (orange)
-    ax.scatter(change_points[:, 0], change_points[:, 1], change_points[:, 2], color='orange', s=1)
+    ax.scatter(change_points[:, 0], change_points[:, 1], change_points[:, 2], color='orange', s=3, label='Thresholded uncertainty Points')
+    ax.legend()
 
     # if no folder exists, create a folder in figures
     output_dir = os.path.join(resultDir, f"uncert_plots/iter{iter}_uncert_plots")
@@ -303,7 +305,7 @@ def get_nerf_uncert_threshold_pts(model: nn.Module, densityThreshold: int, chang
         print(f"issue with finding estimated change points: {e}. Setting estimated change points equal to 0 ")
         estimated_change_pts = 0
 
-    return estimated_change_pts
+    return estimated_change_pts, np.array(CoV)
     
 
 # Run across wide range of thresholds, evaluating the metric
@@ -396,10 +398,10 @@ if __name__ == '__main__':
     # pcd.points = o3d.utility.Vector3dVector(pts.T)
     # o3d.io.write_point_cloud("gt_change_whale_m0.pcd", pcd)
 
-    base_path = 'experiments/mball_big/'
+    base_path = 'experiments/suzanne/'
     set_prefix = 'set'
     model_prefix = 'M'
-    pcd = o3d.io.read_point_cloud("data/gt_change/gt_mball_change.pcd")
+    pcd = o3d.io.read_point_cloud("data/gt_change/gt_suzanne_change.pcd")
     gt_points = np.asarray(pcd.points)
 
     # estimated_change_pts = get_nerf_uncert_threshold_pts(model=change_model, densityThreshold=17.0, changeThreshold=0, # why is it not getting anything if less than 7.7

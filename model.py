@@ -84,3 +84,53 @@ class Nerf(nn.Module):
     
     def intersect(self, x, d):
         return self.forward(x, d)
+
+
+class aleatoric_Nerf(nn.Module):
+    
+    def __init__(self, Lpos=10, Ldir=4, hidden_dim=256):
+        super(Nerf, self).__init__()
+        
+        self.block1 = nn.Sequential(nn.Linear(Lpos * 6 + 3, hidden_dim), nn.ReLU(),
+                                    nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+                                    nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+                                    nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+                                    nn.Linear(hidden_dim, hidden_dim), nn.ReLU())
+        
+        self.block2 = nn.Sequential(nn.Linear(hidden_dim + Lpos * 6 + 3, hidden_dim), nn.ReLU(),
+                                    nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+                                    nn.Linear(hidden_dim, hidden_dim), nn.ReLU(),
+                                    nn.Linear(hidden_dim, hidden_dim + 1),)
+        
+        # Modify the RGB head to predict both mean and variance
+        self.rgb_head_mean = nn.Sequential(nn.Linear(hidden_dim + Ldir * 6 + 3, hidden_dim // 2), nn.ReLU(),
+                                           nn.Linear(hidden_dim // 2, 3))  # Mean output
+        
+        self.rgb_head_var = nn.Sequential(nn.Linear(hidden_dim + Ldir * 6 + 3, hidden_dim // 2), nn.ReLU(),
+                                          nn.Linear(hidden_dim // 2, 3), nn.Softplus())  # Variance (positive)
+
+        self.Lpos = Lpos
+        self.Ldir = Ldir
+        
+    def positional_encoding(self, x, L):
+        out = [x]
+        for j in range(L):
+            out.append(torch.sin(2 ** j * x))
+            out.append(torch.cos(2 ** j * x))
+        return torch.cat(out, dim=1)
+            
+                                    
+    def forward(self, xyz, d):
+        x_emb = self.positional_encoding(xyz, self.Lpos)  # [batch_size, Lpos * 6 + 3]
+        d_emb = self.positional_encoding(d, self.Ldir)    # [batch_size, Ldir * 6 + 3]
+        
+        h = self.block1(x_emb)  # [batch_size, hidden_dim]
+        h = self.block2(torch.cat((h, x_emb), dim=1))  # [batch_size, hidden_dim + 1]
+        sigma = h[:, -1]
+        h = h[:, :-1]  # [batch_size, hidden_dim]
+        
+        # Predict mean and variance for RGB values
+        c_mean = self.rgb_head_mean(torch.cat((h, d_emb), dim=1))
+        c_var = self.rgb_head_var(torch.cat((h, d_emb), dim=1))
+        
+        return c_mean, c_var, torch.relu(sigma)
