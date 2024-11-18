@@ -1,2 +1,4 @@
 # Ignore the folder and its contents
 helpful_scripts/
+experiments/
+data/

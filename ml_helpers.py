@@ -1,8 +1,31 @@
 from tqdm import tqdm
-from rendering import rendering, render_uncert
+from rendering import rendering, rendering_uncertainty
 import numpy as np
 import torch
 import time
+
+
+def loss_function(pred_mean_density, pred_variance, conflict_mask=None, empty_mask=None, 
+                  lambda_conflict=1.0, lambda_empty=1.0, lambda_empty_density=1.0):
+    """
+    Loss function that is based on density, uncertainty, and optional masks for conflict and empty regions.
+    """
+
+    total_loss = 0.0  # Start with a total loss of 0
+
+    # Conflict penalty: encourages higher uncertainty in regions with conflicting data
+    if conflict_mask is not None:
+        conflict_penalty = lambda_conflict * torch.mean(conflict_mask * pred_variance)
+        total_loss += conflict_penalty  # Add the conflict penalty to the total loss
+
+    # Empty space penalty: encourages lower uncertainty and density in empty regions
+    if empty_mask is not None:
+        empty_variance_penalty = lambda_empty * torch.mean(empty_mask * pred_variance)
+        empty_density_penalty = lambda_empty_density * torch.mean(empty_mask * pred_mean_density ** 2)
+        total_loss += empty_variance_penalty + empty_density_penalty  # Add the empty space penalties to the total loss
+
+    return total_loss
+
 
 def training(model, optimizer, scheduler, tn, tf, nb_bins, nb_epochs, data_loader, model_name='nerf/torus1.pth', device='cpu'):
 
@@ -24,11 +47,16 @@ def training(model, optimizer, scheduler, tn, tf, nb_bins, nb_epochs, data_loade
             o = batch[:, :3].to(device)
             d = batch[:, 3:6].to(device)
             
-            target = batch[:, 6:].to(device)
+            pixel_color_target = batch[:, 6:].to(device)
             
-            prediction = rendering(model, o, d, tn, tf, nb_bins=nb_bins, device=device)
+            pixel_color_pred = rendering_uncertainty(model, o, d, tn, tf, nb_bins=nb_bins, device=device)
+
+            t = torch.linspace(tn, tf, nb_bins).to(device) # [nb_bins]
+            x = o.unsqueeze(1) + t.unsqueeze(0).unsqueeze(-1) * d.unsqueeze(1) # [nb_rays, nb_bins, 3]  
+            _, mean_density, variance_density = model.intersect(x.reshape(-1, 3), d.expand(x.shape[0], x.shape[1], 3).transpose(0, 1).reshape(-1, 3))
             
-            loss = ((prediction - target)**2).mean()
+            #loss = ((prediction - target)**2).mean()
+            loss = loss_function(mean_density, variance_density)
             
             optimizer.zero_grad()
             loss.backward()

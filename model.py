@@ -2,39 +2,39 @@ import torch
 import torch.nn as nn
 #import tinycudann as tcnn
 
-class Voxels(nn.Module):
+# class Voxels(nn.Module):
     
-    def __init__(self, nb_voxels=100, scale=1, device='cpu'):
-        super(Voxels, self).__init__()
+#     def __init__(self, nb_voxels=100, scale=1, device='cpu'):
+#         super(Voxels, self).__init__()
         
-        self.voxels = torch.nn.Parameter(torch.rand((nb_voxels, nb_voxels, nb_voxels, 4), 
-                                                    device=device, requires_grad=True))
+#         self.voxels = torch.nn.Parameter(torch.rand((nb_voxels, nb_voxels, nb_voxels, 4), 
+#                                                     device=device, requires_grad=True))
         
-        self.nb_voxels = nb_voxels
-        self.device = device
-        self.scale = scale
+#         self.nb_voxels = nb_voxels
+#         self.device = device
+#         self.scale = scale
         
-    def forward(self, xyz, d):
+#     def forward(self, xyz, d):
         
-        x = xyz[:, 0]
-        y = xyz[:, 1]
-        z = xyz[:, 2]
+#         x = xyz[:, 0]
+#         y = xyz[:, 1]
+#         z = xyz[:, 2]
         
-        cond = (x.abs() < (self.scale / 2)) & (y.abs() < (self.scale / 2)) & (z.abs() < (self.scale / 2))
+#         cond = (x.abs() < (self.scale / 2)) & (y.abs() < (self.scale / 2)) & (z.abs() < (self.scale / 2))
         
-        indx = (x[cond] / (self.scale / self.nb_voxels) + self.nb_voxels / 2).type(torch.long)
-        indy = (y[cond] / (self.scale / self.nb_voxels) + self.nb_voxels / 2).type(torch.long)
-        indz = (z[cond] / (self.scale / self.nb_voxels) + self.nb_voxels / 2).type(torch.long)
+#         indx = (x[cond] / (self.scale / self.nb_voxels) + self.nb_voxels / 2).type(torch.long)
+#         indy = (y[cond] / (self.scale / self.nb_voxels) + self.nb_voxels / 2).type(torch.long)
+#         indz = (z[cond] / (self.scale / self.nb_voxels) + self.nb_voxels / 2).type(torch.long)
         
-        colors_and_densities = torch.zeros((xyz.shape[0], 4), device=xyz.device)
-        colors_and_densities[cond, :3] = self.voxels[indx, indy, indz, :3]
-        colors_and_densities[cond, -1] = self.voxels[indx, indy, indz, -1]
+#         colors_and_densities = torch.zeros((xyz.shape[0], 4), device=xyz.device)
+#         colors_and_densities[cond, :3] = self.voxels[indx, indy, indz, :3]
+#         colors_and_densities[cond, -1] = self.voxels[indx, indy, indz, -1]
          
-        return torch.sigmoid(colors_and_densities[:, :3]), torch.relu(colors_and_densities[:, -1:])
+#         return torch.sigmoid(colors_and_densities[:, :3]), torch.relu(colors_and_densities[:, -1:])
         
     
-    def intersect(self, x, d):
-        return self.forward(x, d)
+#     def intersect(self, x, d):
+#         return self.forward(x, d)
     
     
 class Nerf(nn.Module):
@@ -68,6 +68,23 @@ class Nerf(nn.Module):
             
                                     
         
+    def forward_uncertainty(self, xyz, d):
+        
+        x_emb = self.positional_encoding(xyz, self.Lpos) # [batch_size, Lpos * 6 + 3]
+        d_emb = self.positional_encoding(d, self.Ldir) # [batch_size, Ldir * 6 + 3]
+        
+        h = self.block1(x_emb) # [batch_size, hidden_dim]
+        h = self.block2(torch.cat((h, x_emb), dim=1)) # [batch_size, hidden_dim + 1]
+        # Output the mean density (rho) and variance (sigma^2)
+        mean_density = h[:, :-1]  # All but the last value (mean density)
+        variance_density = torch.softplus(h[:, -1])  # Softplus activation to ensure positive variance (sigma^2)
+    
+        # RGB prediction for the scene
+        c = self.rgb_head(torch.cat((h[:, :-1], d_emb), dim=1))  # RGB color prediction using both features
+        
+        return c, mean_density, variance_density
+    
+
     def forward(self, xyz, d):
         
         x_emb = self.positional_encoding(xyz, self.Lpos) # [batch_size, Lpos * 6 + 3]
