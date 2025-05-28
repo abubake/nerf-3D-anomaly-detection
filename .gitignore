@@ -1,3 +1,5 @@
 # Ignore the folder and its contents
 helpful_scripts/
 data/
+experiments/
+data_zips/
